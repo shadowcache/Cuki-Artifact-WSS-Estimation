@@ -16,7 +16,9 @@ NUM_UNIQUE_ENTRIES=262144 # used for random & sequential benchmark
 REPORT_DIR="/datasets/benchmarks/memory-ccf"
 REPORT_INTERVAL=64
 SIZE_BITS=20
+NUM_SCOPE=0
 SCOPE_BITS=0
+TIME_DIVISOR=1
 
 OPPO_AGING=true;
 
