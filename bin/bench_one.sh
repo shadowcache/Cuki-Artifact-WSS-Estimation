@@ -46,10 +46,12 @@ bench_one_ccf() {
     --num_size_bucket_bits ${SIZE_BITS} \
     --size_bucket_bits ${SIZE_BUCKET_BITS} \
     --size_bits ${SIZE_BITS} \
+    --num_scope ${NUM_SCOPE} \
     --scope_bits ${SCOPE_BITS} \
     --tag_bits ${TAG_BITS} \
     --tags_per_bucket ${TAGS_PER_BUCKET} \
     --bitset_type "default" \
+    --time_divisor ${TIME_DIVISOR} \
     > ${LOG_FILE}
 }
 
@@ -75,6 +77,9 @@ bench_one_mbf() {
     --num_blooms ${NUM_BLOOMS} \
     --report_file ${REPORT_FILE} \
     --report_interval ${REPORT_INTERVAL} \
+    --num_scope ${NUM_SCOPE} \
+    --scope_bits ${SCOPE_BITS} \
+    --time_divisor ${TIME_DIVISOR} \
     >> ${LOG_FILE}
 }
 
@@ -102,7 +107,7 @@ bench_one_bmc() {
     --report_file ${REPORT_FILE} \
     --report_interval ${REPORT_INTERVAL} \
 		--size_bits ${SIZE_BITS} \
-		--scope_bits ${SCOPE_BITS} \
+		--time_divisor ${TIME_DIVISOR} \
     >> ${LOG_FILE}
 }
 
@@ -130,8 +135,38 @@ bench_one_swamp() {
     --report_interval ${REPORT_INTERVAL} \
     --time_divisor ${TIME_DIVISOR} \
     --size_bits ${SIZE_BITS} \
-    --scope_bits ${SCOPE_BITS} \
     >> ${LOG_FILE}
+}
+
+
+
+bench_one_ss() {
+    local str_max_entries=$(to_brief_string ${MAX_ENTRIES})
+    local str_window_size=$(to_brief_string ${WINDOW_SIZE})
+    mkdir -p "${REPORT_DIR}/${BENCHMARK}/${DATASET}"
+    local prefix="${REPORT_DIR}/${BENCHMARK}/${DATASET}/${SHADOW_CACHE}-${DATASET}-${str_max_entries}-${str_window_size}-${MEMORY}-${SIZE_BITS}-${NUM_HASH}"
+    local timestamp=$(date +'%Y%m%d_%H_%M_%S')
+    REPORT_FILE="${prefix}.csv"
+    LOG_FILE="${prefix}.log"
+    echo "${REPORT_FILE}"
+    echo "${LOG_FILE}"
+    ${JAVA} -cp ${JAR} ${CLASS_NAME} \
+      --benchmark ${BENCHMARK} \
+      --shadow_cache ${SHADOW_CACHE} \
+      --dataset ${DATASET} \
+      --trace ${TRACE} \
+      --max_entries ${MAX_ENTRIES} \
+      --memory ${MEMORY} \
+      --window_size ${WINDOW_SIZE} \
+      --num_unique_entries ${NUM_UNIQUE_ENTRIES} \
+      --report_file ${REPORT_FILE} \
+      --report_interval ${REPORT_INTERVAL} \
+      --time_divisor ${TIME_DIVISOR} \
+      --size_bits ${SIZE_BITS} \
+      --scope_bits ${SCOPE_BITS} \
+      --num_scope ${NUM_SCOPE} \
+      --num_hash ${NUM_HASH} \
+      >> ${LOG_FILE}
 }
 
 # TODO: add sliding sketch
