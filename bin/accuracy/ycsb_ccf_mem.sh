@@ -17,6 +17,8 @@ REPORT_DIR="/datasets/benchmarks/memory-ccf-ycsb-concat6"
 REPORT_INTERVAL=64
 SIZE_BITS=20
 SCOPE_BITS=0
+NUM_SCOPE=0
+TIME_DIVISOR=1
 
 OPPO_AGING=true;
 

@@ -25,12 +25,14 @@ to_brief_string() {
 }
 
 # disalbe multi-scope
+NUM_SCOPE=0
 SCOPE_BITS=0
 # disable replay speedup
 TIME_DIVISOR=1
 
 stability_bench() {
   # CCF
+  NUM_SCOPE=0
   SHADOW_CACHE="ccf"
   TAGS_PER_BUCKET=4; TAG_BITS=8;
   SIZE_ENCODE="BUCKET"
@@ -64,6 +66,11 @@ stability_bench() {
   CLOCK_BITS=8
   SIZE_BITS=32
   bench_one_swamp
+
+  #SlidingSketch
+  SHADOW_CACHE="bms"
+  NUM_HASH=8
+  bench_one_ss
 }
 
 # MSR
