@@ -90,6 +90,14 @@ public class ShadowCacheParameters extends Parameters {
   @Parameter(names = "--page_bits")
   public int mPageBits = 8 * 16 + 64;
 
+
+  // String key + page index
+  @Parameter(names = "--freq_bits")
+  public int mFreqBits = 4;
+
+  @Parameter(names = "--key_bits")
+  public int mKeyBits = 64;
+
   public int mAgeLevels = 0;
 
   static class SlidingWindowTypeConverter implements IStringConverter<SlidingWindowType> {

@@ -56,8 +56,8 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   // so hard limited the aging number of each operation.
   private static final int MAX_AGING_PER_OPERATION = 500;
   private static final int AGING_STEP_SIZE = 5;
-  private static int TAGS_PER_BUCKET = 4;
-  private final AtomicLong mNumItems = new AtomicLong(0);
+  protected static int TAGS_PER_BUCKET = 4;
+  protected final AtomicLong mNumItems = new AtomicLong(0);
   private final AtomicLong mTotalBytes = new AtomicLong(0);
   private final AtomicLong mOperationCount = new AtomicLong(0);
   private final AtomicLong mAgingCount = new AtomicLong(0);
@@ -75,17 +75,17 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   private final HashFunction mHashFunction;
   private final ScopeEncoder mScopeEncoder;
   private final ISizeEncoder mSizeEncoder;
-  private final SegmentedLock mLocks;
+  protected final SegmentedLock mLocks;
   private final int[] mSegmentedAgingPointers;
   // if count-based sliding window, windowSize is the number of operations;
   // if time-based sliding window, windowSize is the milliseconds in a period.
   private final SlidingWindowType mSlidingWindowType;
   private final long mWindowSize;
   private final long mStartTime = System.currentTimeMillis();
-  private final CuckooTable mTable;
-  private final CuckooTable mClockTable;
-  private final CuckooTable mSizeTable;
-  private final CuckooTable mScopeTable;
+  protected final CuckooTable mTable;
+  protected final CuckooTable mClockTable;
+  protected final CuckooTable mSizeTable;
+  protected final CuckooTable mScopeTable;
 
   /**
    * The constructor of concurrent clock cuckoo filter.
@@ -99,7 +99,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param funnel the funnel of T's that the constructed cuckoo filter will use
    * @param hasher the hash function the constructed cuckoo filter will use
    */
-  private ConcurrentClockCuckooFilter(CuckooTable table, CuckooTable clockTable,
+  protected ConcurrentClockCuckooFilter(CuckooTable table, CuckooTable clockTable,
       CuckooTable sizeTable, CuckooTable scopeTable, SlidingWindowType slidingWindowType,
       long windowSize, Funnel<? super T> funnel, HashFunction hasher) {
     mTable = table;
@@ -136,7 +136,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
     Arrays.fill(mSegmentedAgingPointers, 0);
   }
 
-  private ConcurrentClockCuckooFilter(CuckooTable table, CuckooTable clockTable,
+  protected ConcurrentClockCuckooFilter(CuckooTable table, CuckooTable clockTable,
       CuckooTable sizeTable, CuckooTable scopeTable, SlidingWindowType slidingWindowType,
       long windowSize, ISizeEncoder sizeEncoder, Funnel<? super T> funnel, HashFunction hasher) {
     mTable = table;
@@ -601,7 +601,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param item the object to be hashed
    * @return the hash code of this item
    */
-  private long hashValue(T item) {
+  protected long hashValue(T item) {
     return mHashFunction.newHasher().putObject(item, mFunnel).hash().asLong();
   }
 
@@ -611,7 +611,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param hv the hash value used for computing
    * @return the bucket computed on given hash value
    */
-  private int indexHash(long hv) {
+  protected int indexHash(long hv) {
     return CuckooUtils.indexHash((int) (hv >> 32), mNumBuckets);
   }
 
@@ -621,7 +621,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param hv the hash value used for computing
    * @return the fingerprint computed on given hash value
    */
-  private int tagHash(long hv) {
+  protected int tagHash(long hv) {
     return CuckooUtils.tagHash((int) hv, mBitsPerTag);
   }
 
@@ -632,7 +632,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param tag the fingerprint for computing
    * @return the alternative bucket
    */
-  private int altIndex(int index, int tag) {
+  protected int altIndex(int index, int tag) {
     return CuckooUtils.altIndex(index, tag, mNumBuckets);
   }
 
@@ -643,7 +643,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param scopeInfo the scope to be encoded
    * @return the encoded number of scope
    */
-  private int encodeScope(CacheScope scopeInfo) {
+  protected int encodeScope(CacheScope scopeInfo) {
     if (scopeInfo.level() == CacheScope.Level.PARTITION) {
       return mScopeEncoder.encode(scopeInfo.parent());
     }
@@ -694,7 +694,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @return a valid tag position pointing to the empty slot; otherwise an invalid tat position
    *         indicating failure
    */
-  private TagPosition cuckooInsertLoop(int b1, int b2, int fp) {
+  protected TagPosition cuckooInsertLoop(int b1, int b2, int fp) {
     int maxRetryNum = 1;
     while (maxRetryNum-- > 0) {
       TagPosition pos = cuckooInsert(b1, b2, fp);
@@ -981,7 +981,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
    * @param b1 the first bucket
    * @param b2 the second bucket
    */
-  private void writeLockAndOpportunisticAging(int b1, int b2) {
+  protected void writeLockAndOpportunisticAging(int b1, int b2) {
     mLocks.writeLock(b1, b2);
     opportunisticAgingSegment(mLocks.getSegmentIndex(b1));
     opportunisticAgingSegment(mLocks.getSegmentIndex(b2));

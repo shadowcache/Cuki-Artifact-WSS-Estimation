@@ -15,6 +15,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import alluxio.client.file.cache.cuckoofilter.ClockCuckooFilter;
 import alluxio.client.file.cache.cuckoofilter.ConcurrentClockCuckooFilter;
+import alluxio.client.file.cache.cuckoofilter.SlidingWindowType;
 import alluxio.client.quota.CacheScope;
 
 import java.util.concurrent.Executors;
@@ -47,7 +48,9 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
     int bitsPerClock = conf.mClockBits;
     mFilter = ConcurrentClockCuckooFilter.create(PageIdFunnel.FUNNEL, conf);
     long agingPeriod = windowMs >> bitsPerClock;
-    mScheduler.scheduleAtFixedRate(this::aging, agingPeriod, agingPeriod, MILLISECONDS);
+    if (conf.mSlidingWindowType == SlidingWindowType.TIME_BASED){
+      mScheduler.scheduleAtFixedRate(this::aging, agingPeriod, agingPeriod, MILLISECONDS);
+    }
   }
 
   @Override

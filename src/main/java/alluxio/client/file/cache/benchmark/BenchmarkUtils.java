@@ -26,6 +26,8 @@ public class BenchmarkUtils {
         return new TwitterEntryGenerator(conf.mTrace);
       case "ycsb":
         return new YCSBEntryGenerator(conf.mTrace);
+      case "throughput":
+        return new ThroughputEntryGenerator(conf.mTrace);
       case "random":
       default:
         return new RandomEntryGenerator(conf.mMaxEntries, 1, (int) conf.mNumUniqueEntries + 1, 1,

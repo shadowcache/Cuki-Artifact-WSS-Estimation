@@ -19,7 +19,7 @@ import alluxio.util.BitsUtils;
 public class SimpleBitSet implements BitSet {
 
   /*
-   * BitSets are packed into arrays of "words."  Currently a word is
+   * BitSets are packed into arrays of "words."  Now a word is
    * a long, which consists of 64 bits, requiring 6 address bits.
    * The choice of word size is determined purely by performance concerns.
    */
@@ -44,6 +44,7 @@ public class SimpleBitSet implements BitSet {
    * Given a bit index, return word index containing it.
    */
   private static int wordIndex(int bitIndex) {
+    // compute the bit Index to long Index (which word contains the bit)
     return bitIndex >> ADDRESS_BITS_PER_WORD;
   }
 
@@ -71,6 +72,7 @@ public class SimpleBitSet implements BitSet {
       throw new IndexOutOfBoundsException("bitIndex < 0: " + bitIndex);
 
     int wordIndex = wordIndex(bitIndex);
+    // TODO: Check if this is correct
     return (wordIndex < wordsInUse)
             && ((words[wordIndex] & (1L << bitIndex)) != 0);
   }
@@ -116,6 +118,7 @@ public class SimpleBitSet implements BitSet {
     long value;
     if (startWordIndex == endWordIndex) {
       // Case 1: One word
+      // bit Index means the bit position in the word
       int fromBitIndex = fromIndex & BIT_INDEX_MASK;
       int toBitIndex = toIndex & BIT_INDEX_MASK;
       toBitIndex = toBitIndex == 0 ? (BIT_INDEX_MASK + 1) : toBitIndex;

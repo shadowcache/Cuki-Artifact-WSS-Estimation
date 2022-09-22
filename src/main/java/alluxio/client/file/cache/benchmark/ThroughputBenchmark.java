@@ -27,8 +27,10 @@ public class ThroughputBenchmark implements Benchmark {
   private final int mNumThreads;
   private final ShadowCache mShadowCache;
   private final List<CacheClient> mClients = new LinkedList<>();
+  private final AgingThread agingThread;
   private EntryGenerator<String> mEntryGenerator;
   private long mNumPeriodToRun;
+  private long agingDuration;
 
   public ThroughputBenchmark(BenchmarkContext benchmarkContext, BenchmarkParameters parameters) {
     mBenchmarkContext = benchmarkContext;
@@ -36,6 +38,7 @@ public class ThroughputBenchmark implements Benchmark {
     mNumThreads = parameters.mNumThreads;
     mEntryGenerator = BenchmarkUtils.createGenerator(parameters);
     mShadowCache = ShadowCache.create(parameters);
+    agingThread = new AgingThread(mShadowCache);
     mShadowCache.stopUpdate();
   }
 
@@ -65,6 +68,7 @@ public class ThroughputBenchmark implements Benchmark {
     System.out.printf("Prepare %d entries cost %d ms\n", count, duration);
     System.out.printf("numPeriodToRun %d, clientPeriodSize %d\n", mNumPeriodToRun,
         clientWindowSize);
+
     return true;
   }
 
@@ -88,7 +92,10 @@ public class ThroughputBenchmark implements Benchmark {
           e.printStackTrace();
         }
       }
-      mShadowCache.aging();
+      //long startAgingTick = System.currentTimeMillis();
+      //mShadowCache.aging();
+      //agingDuration += System.currentTimeMillis() - startAgingTick;
+      new Thread(agingThread).start();
     }
     long opsdone = 0;
     long runtime = 0;
@@ -98,8 +105,11 @@ public class ThroughputBenchmark implements Benchmark {
     }
     long runtimePerClient = runtime / mNumThreads;
     long duration = (System.currentTimeMillis() - startTick);
+    System.out.println("items in window:"+mShadowCache.getShadowCachePages());
+    System.out.println("agingDuration " + agingDuration + "ms");
     System.out.printf("Insert %d entries, cost %d ms, Throughput %d ops/sec\n", opsdone, duration,
         opsdone * 1000 / runtimePerClient);
+    mBenchmarkContext.mStream.println(opsdone * 1000 / runtimePerClient);
   }
 
   private static class CacheClient implements Runnable {
@@ -138,6 +148,19 @@ public class ThroughputBenchmark implements Benchmark {
       }
       mOpsDone += count;
       mRuntime += (System.currentTimeMillis() - startTick);
+    }
+  }
+
+  private static class AgingThread implements Runnable {
+    private final ShadowCache mShadowCache;
+
+    public AgingThread(ShadowCache shadowCache) {
+      mShadowCache = shadowCache;
+    }
+
+    @Override
+    public void run() {
+        mShadowCache.aging();
     }
   }
 }
