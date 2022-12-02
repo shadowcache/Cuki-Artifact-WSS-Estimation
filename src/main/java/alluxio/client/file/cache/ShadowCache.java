@@ -20,9 +20,15 @@ public interface ShadowCache {
   static ShadowCache create(ShadowCacheParameters parameters) {
     ShadowCacheType type = ShadowCacheType.valueOf(parameters.mShadowCacheType.toUpperCase());
     switch (type) {
+      case RAR:
+        parameters.mAgeLevels = (int)parameters.mWindowSize;
+        return new RARCMCacheManager(parameters);
       case MBF:
         parameters.mAgeLevels = parameters.mNumBloom;
         return new MultipleBloomShadowCacheManager(parameters);
+      case IDEAL_MRC:
+        parameters.mAgeLevels = 1;
+        return new IdealMRCShadowCacheManager(parameters);
       case IDEAL:
         parameters.mAgeLevels = 1;
         return new IdealShadowCacheManager(parameters);
@@ -164,6 +170,6 @@ public interface ShadowCache {
   }
 
   enum ShadowCacheType {
-    MBF, CCF, IDEAL, BMC, BMS, BMC2, BMC3, SWAMP, BMS2
+    MBF, CCF, IDEAL, IDEAL_MRC, BMC, BMS, BMC2, BMC3, SWAMP, BMS2, RAR
   }
 }

@@ -8,8 +8,8 @@ import java.util.HashMap;
 public class LRU {
     public static class Node {
         private PageId item;
-        private LRU.Node next;
-        private LRU.Node prev;
+        public LRU.Node next;
+        public LRU.Node prev;
 
         Node(LRU.Node prev, PageId pageId, LRU.Node next) {
             this.item = pageId;
@@ -24,7 +24,7 @@ public class LRU {
     private LRU.Node head;
     private LRU.Node tail;
     private long size;
-    private HashMap<PageId, LRU.Node> idToNode;
+    public HashMap<PageId, LRU.Node> idToNode;
     public LRU(){
         size = 0;
         head = null;
@@ -49,13 +49,13 @@ public class LRU {
         if(node == null){
             return false;
         } else {
-            if(node==head){
+            if(node==tail){
+                return true;
+            }else if(node == head){
                 head = head.next;
                 if(head!=null){
                     head.prev = null;
                 }
-            }else if(node == tail){
-                return true;
             } else{
                 node.prev.next = node.next;
                 node.next.prev = node.prev;
@@ -111,6 +111,9 @@ public class LRU {
     }
     public Node getHead(){
         return head;
+    }
+    public Node getTail(){
+        return tail;
     }
     public Node next(Node node){
         return node.next;
