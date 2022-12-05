@@ -11,6 +11,7 @@
 
 package alluxio.client.file.cache.benchmark;
 
+import alluxio.client.file.cache.IdealMRCShadowCacheManager;
 import alluxio.client.file.cache.IdealShadowCacheManager;
 import alluxio.client.file.cache.PageId;
 import alluxio.client.file.cache.ShadowCache;
@@ -31,7 +32,7 @@ public class MRCAccuracyBenchmark implements Benchmark {
     mBenchmarkContext = benchmarkContext;
     mBenchmarkParameters = benchmarkParameters;
     mShadowCache = ShadowCache.create(benchmarkParameters);
-    mIdealShadowCache = new IdealShadowCacheManager(benchmarkParameters);
+    mIdealShadowCache = new IdealMRCShadowCacheManager(benchmarkParameters);
     createDataset();
     mShadowCache.stopUpdate();
   }

@@ -18,6 +18,8 @@ public interface Benchmark {
     BenchmarkContext benchmarkContext = new BenchmarkContext(parameters);
     BenchmarkType type = BenchmarkType.valueOf(parameters.mBenchmarkType.toUpperCase());
     switch (type) {
+      case MRC_ACCURACY:
+        return new MRCAccuracyBenchmark(benchmarkContext, parameters);
       case ACCURACY:
         return new AccuracyBenchmark(benchmarkContext, parameters);
       case THROUGHPUT:
@@ -55,7 +57,7 @@ public interface Benchmark {
   }
 
   enum BenchmarkType {
-    ACCURACY, THROUGHPUT, HITRATIO, INSERT_THROUGHPUT, QUERY_THROUGHPUT, TIME_ACCURACY,
+    ACCURACY, MRC_ACCURACY, THROUGHPUT, HITRATIO, INSERT_THROUGHPUT, QUERY_THROUGHPUT, TIME_ACCURACY,
     TABLE, MULTI, TIME_MULTI, ADAPTION,SS_THROUGHPUT,MEM
   }
 }

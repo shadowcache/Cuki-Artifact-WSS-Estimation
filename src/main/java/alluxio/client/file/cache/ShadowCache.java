@@ -28,7 +28,7 @@ public interface ShadowCache {
         return new MultipleBloomShadowCacheManager(parameters);
       case IDEAL_MRC:
         parameters.mAgeLevels = 1;
-        return new IdealMRCShadowCacheManager(parameters);
+        return new IdealMRCShadowCacheManager2(parameters);
       case IDEAL:
         parameters.mAgeLevels = 1;
         return new IdealShadowCacheManager(parameters);

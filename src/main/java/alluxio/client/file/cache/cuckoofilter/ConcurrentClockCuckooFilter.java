@@ -57,6 +57,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   private static final int MAX_AGING_PER_OPERATION = 500;
   private static final int AGING_STEP_SIZE = 5;
   protected static int TAGS_PER_BUCKET = 4;
+  private static final boolean MRC_OPEN = true;
   protected final AtomicLong mNumItems = new AtomicLong(0);
   private final AtomicLong mTotalBytes = new AtomicLong(0);
   private final AtomicLong mOperationCount = new AtomicLong(0);
@@ -86,6 +87,10 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   protected final CuckooTable mClockTable;
   protected final CuckooTable mSizeTable;
   protected final CuckooTable mScopeTable;
+  private AtomicLong[] clockDist = null;
+  private AtomicLong maxMRCSize = new AtomicLong(0);
+  private AtomicLong insertionFailureCount = new AtomicLong(0);
+
 
   /**
    * The constructor of concurrent clock cuckoo filter.
@@ -133,6 +138,15 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
     }
     // init aging pointers for each lock
     mSegmentedAgingPointers = new int[mLocks.getNumLocks()];
+    if(MRC_OPEN){
+      clockDist = new AtomicLong[mMaxAge+1];
+      for(int i=0;i<=mMaxAge;i++){
+        clockDist[i] = new AtomicLong(0);
+      }
+    }else {
+      clockDist = null;
+    }
+
     Arrays.fill(mSegmentedAgingPointers, 0);
   }
 
@@ -167,6 +181,17 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
       mScopeToNumber[i] = new AtomicInteger(0);
       mScopeToSize[i] = new AtomicLong(0);
     }
+
+    //init clock dist
+    if(MRC_OPEN){
+      clockDist = new AtomicLong[mMaxAge+1];
+      for(int i=0;i<=mMaxAge;i++){
+        clockDist[i] = new AtomicLong(0);
+      }
+    }else {
+      clockDist = null;
+    }
+
     // init aging pointers for each lock
     mSegmentedAgingPointers = new int[mLocks.getNumLocks()];
     Arrays.fill(mSegmentedAgingPointers, 0);
@@ -391,6 +416,8 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
       // 2. b1 and b2 do not contain duplicated fingerprint.
       mTable.writeTag(pos.getBucketIndex(), pos.getSlotIndex(), tag);
       mClockTable.set(pos.getBucketIndex(), pos.getSlotIndex());
+      // update clock dist.
+      clockDist[mMaxAge].addAndGet(size);
       mScopeTable.writeTag(pos.getBucketIndex(), pos.getSlotIndex(), scope);
       mSizeEncoder.add(size);
       int encodedSize = mSizeEncoder.encode(size);
@@ -403,6 +430,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
       mLocks.unlockWrite(b1, b2);
       return true;
     }
+    insertionFailureCount.incrementAndGet();
     mLocks.unlockWrite(b1, b2);
     return false;
   }
@@ -432,6 +460,13 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
     boolean found = pos.getStatus() == CuckooStatus.OK;
     if (found && shouldReset) {
       // set C to MAX
+      int oldClock =  mClockTable.readTag(pos.getBucketIndex(),pos.getSlotIndex());
+      int size = mSizeTable.readTag(pos.getBucketIndex(), pos.getSlotIndex());
+
+      updateMaxMrcSize(oldClock);
+      clockDist[oldClock].addAndGet(-size);
+      clockDist[mMaxAge].addAndGet(size);
+
       mClockTable.set(pos.getBucketIndex(), pos.getSlotIndex());
     }
     mLocks.unlockRead(b1, b2);
@@ -533,7 +568,8 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
 
   @Override
   public long approximateElementSize() {
-    return mSizeEncoder.getTotalSize();
+    //return mSizeEncoder.getTotalSize();
+    return maxMRCSize.get();
   }
 
   @Override
@@ -1075,6 +1111,11 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
       int oldClock = mClockTable.readTag(b, slotIndex);
       if (oldClock > 0) {
         mClockTable.writeTag(b, slotIndex, oldClock - 1);
+        int encodedSize = mSizeTable.readTag(b, slotIndex);
+        int size = mSizeEncoder.dec(encodedSize);
+        mSizeEncoder.add(size);
+        clockDist[oldClock].addAndGet(-size);
+        clockDist[oldClock - 1].addAndGet(size);
       } else {
         // evict stale item
         numCleaned++;
@@ -1083,11 +1124,23 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
         int scope = mScopeTable.readTag(b, slotIndex);
         int encodedSize = mSizeTable.readTag(b, slotIndex);
         // encodedSize = decodeSize(encodedSize);
-        updateScopeStatistics(scope, -1, -mSizeEncoder.dec(encodedSize));
+        int size = mSizeEncoder.dec(encodedSize);
+        updateScopeStatistics(scope, -1, -size);
+        clockDist[0].addAndGet(-size);
         mTotalBytes.addAndGet(-encodedSize);
       }
     }
     return numCleaned;
+  }
+
+  private void updateMaxMrcSize(int oldClock){
+    long sumSize = 0;
+    for(int i  = oldClock; i<=mMaxAge; i++){
+      sumSize += clockDist[i].get();
+    }
+    if(sumSize > maxMRCSize.get()){
+      maxMRCSize.set(sumSize);
+    }
   }
 
   /**
