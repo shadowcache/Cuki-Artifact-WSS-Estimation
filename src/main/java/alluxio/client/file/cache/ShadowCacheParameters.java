@@ -11,6 +11,7 @@
 
 package alluxio.client.file.cache;
 
+import alluxio.Constants;
 import alluxio.client.file.cache.cuckoofilter.SlidingWindowType;
 import alluxio.client.file.cache.cuckoofilter.size.SizeEncodeType;
 import alluxio.collections.BitSet;
@@ -97,6 +98,12 @@ public class ShadowCacheParameters extends Parameters {
 
   @Parameter(names = "--key_bits")
   public int mKeyBits = 64;
+
+  @Parameter(names = "--rd_length")
+  public int mRDLength = 1024;
+
+  @Parameter(names = "--rd_width")
+  public int mRDWidth = Constants.MB;
 
   public int mAgeLevels = 0;
 

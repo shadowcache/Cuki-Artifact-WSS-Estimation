@@ -169,6 +169,10 @@ public interface ShadowCache {
     return "";
   }
 
+  default double[] getMRC(){
+    return null;
+  }
+
   enum ShadowCacheType {
     MBF, CCF, IDEAL, IDEAL_MRC, BMC, BMS, BMC2, BMC3, SWAMP, BMS2, RAR
   }

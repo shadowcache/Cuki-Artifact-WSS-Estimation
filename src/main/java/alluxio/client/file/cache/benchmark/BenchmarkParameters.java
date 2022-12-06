@@ -11,6 +11,7 @@
 
 package alluxio.client.file.cache.benchmark;
 
+import alluxio.Constants;
 import alluxio.client.file.cache.ShadowCacheParameters;
 
 import com.beust.jcommander.Parameter;

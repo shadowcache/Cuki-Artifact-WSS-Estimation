@@ -59,6 +59,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   protected static int TAGS_PER_BUCKET = 4;
   private static final boolean MRC_OPEN = true;
   protected final AtomicLong mNumItems = new AtomicLong(0);
+  private final AtomicLong mTotalNum = new AtomicLong(0);
   private final AtomicLong mTotalBytes = new AtomicLong(0);
   private final AtomicLong mOperationCount = new AtomicLong(0);
   private final AtomicLong mAgingCount = new AtomicLong(0);
@@ -88,6 +89,9 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   protected final CuckooTable mSizeTable;
   protected final CuckooTable mScopeTable;
   private AtomicLong[] clockDist = null;
+  private static AtomicLong[] RD = null;
+  private static long RDWidth;
+  private static long RDLength;
   private AtomicLong maxMRCSize = new AtomicLong(0);
   private AtomicLong insertionFailureCount = new AtomicLong(0);
 
@@ -249,6 +253,15 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
                       conf.mSizeBucketFirst, conf.mSizeBucketBase, conf.mSizeBucketBias);
     } else {
       sizeEncoder = new NoOpSizeEncoder(conf.mNumSizeBucketBits + conf.mSizeBucketBits);
+    }
+
+    if(MRC_OPEN){
+      RDLength = conf.mRDLength;
+      RDWidth = conf.mRDWidth;
+      RD = new AtomicLong[(int)RDLength];
+      for(int i=0;i<RDLength;i++){
+        RD[i] = new AtomicLong(0);
+      }
     }
 
     return new ConcurrentClockCuckooFilter<>(table, clockTable, sizeTable, scopeTable,
@@ -457,15 +470,21 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
     int b2 = altIndex(b1, tag);
     mLocks.readLock(b1, b2);
     TagPosition pos = mTable.findTag(b1, b2, tag);
+    mTotalNum.incrementAndGet();
     boolean found = pos.getStatus() == CuckooStatus.OK;
     if (found && shouldReset) {
       // set C to MAX
       int oldClock =  mClockTable.readTag(pos.getBucketIndex(),pos.getSlotIndex());
-      int size = mSizeTable.readTag(pos.getBucketIndex(), pos.getSlotIndex());
+      int encoded_size = mSizeTable.readTag(pos.getBucketIndex(), pos.getSlotIndex());
 
-      updateMaxMrcSize(oldClock);
-      clockDist[oldClock].addAndGet(-size);
-      clockDist[mMaxAge].addAndGet(size);
+      if(MRC_OPEN){
+        updateMaxMrcSize(oldClock);
+        int decoded_size = mSizeEncoder.dec(encoded_size);
+        mSizeEncoder.add(decoded_size);
+        clockDist[oldClock].addAndGet(-decoded_size);
+        clockDist[mMaxAge].addAndGet(decoded_size);
+      }
+
 
       mClockTable.set(pos.getBucketIndex(), pos.getSlotIndex());
     }
@@ -1134,13 +1153,37 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   }
 
   private void updateMaxMrcSize(int oldClock){
-    long sumSize = 0;
-    for(int i  = oldClock; i<=mMaxAge; i++){
+    long sumSize = clockDist[oldClock].get() / 2;
+    for(int i  = oldClock+1; i<=mMaxAge; i++){
       sumSize += clockDist[i].get();
     }
+    int stackDistance = (int)Math.round((double)sumSize / RDWidth);
+    if(stackDistance >= RDLength){
+       stackDistance = (int)RDLength-1;
+       System.out.println("[CCF] too larger distance");
+    }
+    RD[stackDistance].incrementAndGet();
     if(sumSize > maxMRCSize.get()){
       maxMRCSize.set(sumSize);
     }
+  }
+
+  public double[] getMRC(){
+    double[] mrc = new double[(int)RDLength];
+    long hit_ops = 0;
+    for(int i = 0; i<RDLength; i++){
+      hit_ops += RD[i].get();
+      mrc[i] = (double)hit_ops / mTotalNum.get();
+    }
+    return mrc;
+  }
+
+  public String getMRCSummary() {
+    long hit_ops = 0;
+    for(int i = 0; i<RDLength; i++){
+      hit_ops += RD[i].get();
+    }
+    return String.format("hit_ops: %d, total_ops: %d", hit_ops, mTotalNum.get());
   }
 
   /**

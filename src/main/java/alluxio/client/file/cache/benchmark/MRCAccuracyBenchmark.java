@@ -12,6 +12,7 @@
 package alluxio.client.file.cache.benchmark;
 
 import alluxio.client.file.cache.IdealMRCShadowCacheManager;
+import alluxio.client.file.cache.IdealMRCShadowCacheManager2;
 import alluxio.client.file.cache.IdealShadowCacheManager;
 import alluxio.client.file.cache.PageId;
 import alluxio.client.file.cache.ShadowCache;
@@ -19,6 +20,8 @@ import alluxio.client.file.cache.dataset.Dataset;
 import alluxio.client.file.cache.dataset.DatasetEntry;
 import alluxio.client.file.cache.dataset.GeneralDataset;
 import alluxio.client.file.cache.dataset.generator.EntryGenerator;
+
+import java.util.Arrays;
 
 public class MRCAccuracyBenchmark implements Benchmark {
   private final BenchmarkContext mBenchmarkContext;
@@ -32,7 +35,7 @@ public class MRCAccuracyBenchmark implements Benchmark {
     mBenchmarkContext = benchmarkContext;
     mBenchmarkParameters = benchmarkParameters;
     mShadowCache = ShadowCache.create(benchmarkParameters);
-    mIdealShadowCache = new IdealMRCShadowCacheManager(benchmarkParameters);
+    mIdealShadowCache = new IdealMRCShadowCacheManager2(benchmarkParameters);
     createDataset();
     mShadowCache.stopUpdate();
   }
@@ -71,8 +74,7 @@ public class MRCAccuracyBenchmark implements Benchmark {
 
     System.out.println(mShadowCache.getSummary());
     mBenchmarkContext.mStream.println(
-        "#operation\tReal\tReal(byte)\tEst\tEst(byte)\t" + "RealRead(Page)\tRealRead(Bytes)\t"
-            + "RealHit(Page)\tRealHit(Bytes)\t" + "EstHit(Page)\tEstHit(Bytes)");
+        "#operation\tMAE");
 
     long startTick = System.currentTimeMillis();
     while (mDataset.hasNext() && opsCount < mBenchmarkParameters.mMaxEntries) {
@@ -120,77 +122,29 @@ public class MRCAccuracyBenchmark implements Benchmark {
       if (opsCount % mBenchmarkParameters.mReportInterval == 0) {
         mIdealShadowCache.updateWorkingSetSize();
         mShadowCache.updateWorkingSetSize();
-        // long realNum = mDataset.getRealEntryNumber();
-        // long realByte = mDataset.getRealEntrySize();
-        long realNum = mIdealShadowCache.getShadowCachePages();
-        long realByte = mIdealShadowCache.getShadowCacheBytes();
-        long realCachePagesRead = mIdealShadowCache.getShadowCachePageRead();
-        long realCacheBytesRead = mIdealShadowCache.getShadowCacheByteRead();
-        long realCachePagesHit = mIdealShadowCache.getShadowCachePageHit();
-        long realCacheBytesHit = mIdealShadowCache.getShadowCacheByteHit();
-        long estNum = mShadowCache.getShadowCachePages();
-        long estByte = mShadowCache.getShadowCacheBytes();
-        long estCachePagesRead = mShadowCache.getShadowCachePageRead();
-        long estCacheBytesRead = mShadowCache.getShadowCacheByteRead();
-        long estCachePagesHit = mShadowCache.getShadowCachePageHit();
-        long estCacheBytesHit = mShadowCache.getShadowCacheByteHit();
-        assert realCachePagesRead == estCachePagesRead;
-        assert realCacheBytesRead == estCacheBytesRead;
-        mBenchmarkContext.mStream.printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", opsCount,
-            realNum, realByte, estNum, estByte, realCachePagesRead, realCacheBytesRead,
-            realCachePagesHit, realCacheBytesHit, estCachePagesHit, estCacheBytesHit);
-        // accumulate error
-        errCnt++;
-        numARE += Math.abs(estNum / (double) realNum - 1.0);
-        byteARE += Math.abs(estByte / (double) realByte - 1.0);
-        if (estCacheBytesHit != 0) {
-          pageHitARE += Math.abs(realCachePagesHit / (double) estCachePagesHit - 1.0);
-          byteHitARE += Math.abs(realCacheBytesHit / (double) estCacheBytesHit - 1.0);
+        double[] realMRC = mIdealShadowCache.getMRC();
+        double[] estMRC = mShadowCache.getMRC();
+        double MAE = 0.0;
+        for(int i=0;i<realMRC.length;i++) {
+          MAE += Math.abs(realMRC[i] - estMRC[i]);
         }
+        MAE /= realMRC.length;
+        mBenchmarkContext.mStream.printf("%d\t%.4f%%\n", opsCount, MAE*100);
       }
     }
-    long realCachePagesRead = mIdealShadowCache.getShadowCachePageRead();
-    long realCacheBytesRead = mIdealShadowCache.getShadowCacheByteRead();
-    long totalDuration = (System.currentTimeMillis() - startTick);
-    long realCachePagesHit = mIdealShadowCache.getShadowCachePageHit();
-    long realCacheBytesHit = mIdealShadowCache.getShadowCacheByteHit();
-    long estCachePagesHit = mShadowCache.getShadowCachePageHit();
-    long estCacheBytesHit = mShadowCache.getShadowCacheByteHit();
-    double realPageHitRatio = realCachePagesHit / (double) realCachePagesRead;
-    double estPageHitRatio = estCachePagesHit / (double) realCachePagesRead;
-    double realByteHitRatio = realCacheBytesHit / (double) realCacheBytesRead;
-    double estByteHitRatio = estCacheBytesHit / (double) realCacheBytesRead;
-    double pageHitAREFinal = Math.abs(estPageHitRatio / realPageHitRatio - 1.0);
-    double byteHitAREFinal = Math.abs(estByteHitRatio / realByteHitRatio - 1.0);
 
-    System.out.println(mShadowCache.getSummary());
-    System.out.println();
-    System.out.println("TotalTime(ms)\t" + totalDuration);
-    System.out.println();
-    System.out
-        .println("Put/Get(ms)\tAging(ms)\tAgingCnt\tops/sec\tops/sec(aging)\tARE(Page)\tARE(Byte)"
-            + "\tARE(PageHit)\tARE(ByteHit)\tFinalARE(PageHit)\tFinalARE(ByteHit)");
-    System.out.printf("%d\t%d\t%d\t%.2f\t%.2f\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\t%.4f%%\n",
-        cacheDuration, agingDuration, agingCount, opsCount * 1000 / (double) cacheDuration,
-        opsCount * 1000 / (double) (cacheDuration + agingDuration), numARE * 100 / errCnt,
-        byteARE * 100 / errCnt, pageHitARE * 100 / errCnt, byteHitARE * 100 / errCnt,
-        pageHitAREFinal * 100, byteHitAREFinal * 100);
-
-    System.out.println();
-    System.out.println("FPR(Page)\tFNR(Page)\tER(Page)");
-    System.out.printf("%d/%d=%.4f%%\t%d/%d=%.4f%%\t%d/%d=%.4f%%\n", numFP, opsCount,
-        numFP * 100 / (double) opsCount, numFN, opsCount, numFN * 100 / (double) opsCount,
-        numFP + numFN, opsCount, (numFP + numFN) * 100 / (double) opsCount);
-
-    System.out.println();
-    System.out.println("FPR(Byte)\tFNR(Byte)\tER(Byte)");
-    System.out.printf("%d/%d=%.4f%%\t%d/%d=%.4f%%\t%d/%d=%.4f%%\n", byteFP, totalBytes,
-        byteFP * 100 / (double) totalBytes, byteFN, totalBytes, byteFN * 100 / (double) totalBytes,
-        byteFP + byteFN, totalBytes, (byteFP + byteFN) * 100 / (double) totalBytes);
-
-    if (mBenchmarkParameters.mVerbose) {
-      System.out.println(mShadowCache.dumpDebugInfo());
+    double[] realMRC = mIdealShadowCache.getMRC();
+    double[] estMRC = mShadowCache.getMRC();
+    double MAE = 0.0;
+    for(int i=0;i<realMRC.length;i++) {
+      MAE += Math.abs(realMRC[i] - estMRC[i]);
     }
+    MAE /= realMRC.length;
+    mBenchmarkContext.mStream.printf("%d\t%.4f%%\n", opsCount, MAE*100);
+    //System.out.println("realMRC:\n" + Arrays.toString(realMRC));
+    //System.out.println("estMRC:\n" + Arrays.toString(estMRC));
+    System.out.println("real maxium hit ratio: "+ realMRC[realMRC.length-1]);
+    System.out.println("est maxium hit ratio: "+ estMRC[estMRC.length-1]);
   }
 
   @Override

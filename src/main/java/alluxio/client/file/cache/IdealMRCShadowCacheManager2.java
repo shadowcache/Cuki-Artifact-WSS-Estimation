@@ -43,6 +43,10 @@ public class IdealMRCShadowCacheManager2 implements ShadowCache {
   private SlidingWindowType mSlidingWindowType;
   private long timestampNow;
   private long maxMRCSize;
+  private long[] RD;
+  private int RDLength;
+  private long RDWidth;
+  private int maxLength;
 
   public IdealMRCShadowCacheManager2(ShadowCacheParameters params) {
     mSlidingWindowType = params.mSlidingWindowType;
@@ -59,6 +63,9 @@ public class IdealMRCShadowCacheManager2 implements ShadowCache {
     this.realNumber = 0;
     this.realSize = 0;
     this.timestampNow = 0;
+    this.RDLength = params.mRDLength;
+    this.RDWidth = params.mRDWidth;
+    this.RD = new long[RDLength];
   }
 
   @Override
@@ -105,6 +112,16 @@ public class IdealMRCShadowCacheManager2 implements ShadowCache {
         node = node.next;
       }
       sizeSum+=itemToAttribute.get(tail.getItem()).size;
+      int stackDistance = (int)Math.round((double)sizeSum / RDWidth);
+
+      if(stackDistance >= RDLength){
+        stackDistance = RDLength-1;
+        System.out.println("[ideal]: stack distance is larger than RDLength");
+      }
+      if(stackDistance > maxLength){
+        maxLength = stackDistance;
+      }
+      RD[stackDistance] ++;
       if(sizeSum>maxMRCSize){
         maxMRCSize = sizeSum;
       }
@@ -233,6 +250,16 @@ public class IdealMRCShadowCacheManager2 implements ShadowCache {
         + (windowSize * (bitsPerItem + bitsPerTimestamp + bitsPerScope + bitsPerTimestamp) / 8.0
             / Constants.MB
             + windowSize * (bitsPerScope * 2 + 32 + bitsPerSize) / 8.0 / Constants.MB);
+  }
+
+  public double[] getMRC(){
+    double[] mrc = new double[maxLength+1];
+    long hit_ops = 0;
+    for(int i = 0; i<=maxLength; i++){
+      hit_ops += RD[i];
+      mrc[i] = (double)hit_ops / mShadowCachePageRead.get();
+    }
+    return mrc;
   }
 
   private static class ItemAttribute {

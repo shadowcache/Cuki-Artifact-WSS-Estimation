@@ -68,10 +68,8 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
    */
   private boolean updateClockCuckoo(PageId pageId, int size, CacheScope cacheScope) {
     boolean ok = true;
-    if (!mFilter.mightContainAndResetClock(pageId)) {
-      ok = mFilter.put(pageId, size, cacheScope);
-      updateWorkingSetSize();
-    }
+    ok = mFilter.put(pageId, size, cacheScope);
+    updateWorkingSetSize();
     return ok;
   }
 
@@ -135,6 +133,7 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
 
   @Override
   public long getShadowCachePageRead() {
+    System.out.println(mFilter.getMRCSummary());
     return mShadowCachePageRead.get();
   }
 
@@ -167,6 +166,10 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
   @Override
   public String getSummary() {
     return "ClockCuckooShadowCache:\n" + mFilter.getSummary();
+  }
+
+  public double[] getMRC() {
+    return mFilter.getMRC();
   }
 
   @Override

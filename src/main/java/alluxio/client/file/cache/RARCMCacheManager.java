@@ -46,11 +46,13 @@ public class RARCMCacheManager implements ShadowCache{
 
   private final static int mBitsPerSize = 64;
   private final static int mBitsPerTimestamp = 64;
-  private final static int RDWidth =  1;
+
   private final ScheduledExecutorService mScheduler = Executors.newScheduledThreadPool(0);
-  //private final static int RDLength = 1024 * 1000;
+  private long[] RD;
   private int maxRDLength = 0;
-  //private final static long[] RD = new long[RDLength];
+  private int RDLength;
+  private int RDWidth;
+
   private double []RAR;
   private long startTime = 0;
   private int agingCount = 1;
@@ -68,6 +70,9 @@ public class RARCMCacheManager implements ShadowCache{
     mSlidingWindowType = parameters.mSlidingWindowType;
     timestampTable = new long[numBuckets];
     sizeTable = new long[numBuckets];
+    RDWidth = parameters.mRDWidth;
+    RDLength = parameters.mRDLength;
+    RD = new long[RDLength];
     if(mSlidingWindowType==SlidingWindowType.TIME_BASED){
       startTime = System.currentTimeMillis();
       mScheduler.scheduleAtFixedRate(this::aging, 1, 1, MILLISECONDS);
@@ -114,7 +119,11 @@ public class RARCMCacheManager implements ShadowCache{
       long sizeInterval = mTotalSize.get() - sizeTable[pos];
       long timeInterval = currentTime - timestampTable[pos];
       int distance = getStackDistance(timeInterval, sizeInterval);
-      //RD[distance]++;
+      if(distance >= RDLength){
+        System.out.println("[RARCM]: distance is too large");
+        distance = RDLength-1;
+      }
+      RD[distance]++;
       if(distance > maxRDLength){
         maxRDLength = distance;
       }
@@ -252,6 +261,8 @@ public class RARCMCacheManager implements ShadowCache{
     return 0;
   }
 
+
+
   /**
    * @return the summary of this shadow cache
    */
@@ -266,6 +277,16 @@ public class RARCMCacheManager implements ShadowCache{
 
   private int bucketIndex(PageId pageId, HashFunction hashFunc) {
     return Math.abs(hashFunc.newHasher().putObject(pageId, mFunnel).hash().asInt() % mNumBuckets);
+  }
+
+  public double[] getMRC(){
+    double[] mrc = new double[RDLength];
+    int hit_ops = 0;
+    for(int i=0;i<RDLength;i++){
+      hit_ops+=RD[i];
+      mrc[i] = (double)hit_ops/mTotalNum.get();
+    }
+    return mrc;
   }
 
   private int getStackDistance(long timeInterval, long sizeInterval){
