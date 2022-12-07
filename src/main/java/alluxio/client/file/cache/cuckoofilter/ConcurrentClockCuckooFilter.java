@@ -93,7 +93,8 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
   private static long RDWidth;
   private static long RDLength;
   private AtomicLong maxMRCSize = new AtomicLong(0);
-  private AtomicLong insertionFailureCount = new AtomicLong(0);
+  public AtomicLong insertionFailureCount = new AtomicLong(0);
+  public AtomicLong insertionCount = new AtomicLong(0);
 
 
   /**
@@ -409,6 +410,7 @@ public class ConcurrentClockCuckooFilter<T> implements ClockCuckooFilter<T>, Ser
     if (size <= 0) {
       return false;
     }
+    insertionCount.incrementAndGet();
     long hv = hashValue(item);
     int tag = tagHash(hv);
     int b1 = indexHash(hv);

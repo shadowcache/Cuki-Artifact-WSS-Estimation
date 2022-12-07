@@ -176,4 +176,7 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
   public String dumpDebugInfo() {
     return mFilter.dumpDebugInfo();
   }
+  public double getInsertionFailureRatio() {
+    return (double) mFilter.insertionFailureCount.get() / mFilter.insertionCount.get();
+  }
 }

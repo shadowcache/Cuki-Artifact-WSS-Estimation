@@ -93,9 +93,10 @@ public class ThroughputBenchmark implements Benchmark {
         }
       }
       //long startAgingTick = System.currentTimeMillis();
-      //mShadowCache.aging();
+      System.out.println(w + "th period finished" + ", total:" + mNumPeriodToRun);
+      mShadowCache.aging();
       //agingDuration += System.currentTimeMillis() - startAgingTick;
-      new Thread(agingThread).start();
+      //new Thread(agingThread).start();
     }
     long opsdone = 0;
     long runtime = 0;

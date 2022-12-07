@@ -140,11 +140,14 @@ public class MRCAccuracyBenchmark implements Benchmark {
       MAE += Math.abs(realMRC[i] - estMRC[i]);
     }
     MAE /= realMRC.length;
-    mBenchmarkContext.mStream.printf("%d\t%.4f%%\n", opsCount, MAE*100);
+    long timeCost = cacheDuration+agingDuration;
+    double throughput = (double) (opsCount  * 1000) / timeCost ;
+    mBenchmarkContext.mStream.printf("OPS: %d\tMAE: %.4f%%\tThroughput: %.4f\n", opsCount, MAE*100, throughput);
     //System.out.println("realMRC:\n" + Arrays.toString(realMRC));
     //System.out.println("estMRC:\n" + Arrays.toString(estMRC));
     System.out.println("real maxium hit ratio: "+ realMRC[realMRC.length-1]);
     System.out.println("est maxium hit ratio: "+ estMRC[estMRC.length-1]);
+    System.out.println("insertion failure ratio: "+ mShadowCache.getInsertionFailureRatio());
   }
 
   @Override

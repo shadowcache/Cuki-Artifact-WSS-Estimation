@@ -173,6 +173,9 @@ public interface ShadowCache {
     return null;
   }
 
+  default double getInsertionFailureRatio(){
+    return 0;
+  }
   enum ShadowCacheType {
     MBF, CCF, IDEAL, IDEAL_MRC, BMC, BMS, BMC2, BMC3, SWAMP, BMS2, RAR
   }
