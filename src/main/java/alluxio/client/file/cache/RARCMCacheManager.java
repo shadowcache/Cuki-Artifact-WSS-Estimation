@@ -151,7 +151,7 @@ public class RARCMCacheManager implements ShadowCache{
    */
   @Override
   public void aging() {
-    RAR[agingCount++] = (double) mReAccessSize.get()/mTotalSize.get();
+    RAR[agingCount++] = (double) mReAccessNum.get()/mTotalNum.get();
   }
 
   /**
@@ -301,7 +301,7 @@ public class RARCMCacheManager implements ShadowCache{
 
     if(reAccessRatio==0){
       System.out.println("could not find a valid reAccessRatio in rar table");
-      reAccessRatio =  (double)mReAccessSize.get() / mTotalSize.get();
+      reAccessRatio =  (double)mReAccessNum.get() / mTotalNum.get();
     }
     double uniqueRatio = (1 - reAccessRatio);
     double stackDistance = (sizeInterval * uniqueRatio) / RDWidth;
