@@ -85,7 +85,7 @@
         <guava.version>29.0-jre</guava.version>
         <jackson.version>2.11.1</jackson.version>
         <junit.version>4.13</junit.version>
-        <testng.version>RELEASE</testng.version>
+        <testng.version>6.14.3</testng.version>
     </properties>
 
 </project>
