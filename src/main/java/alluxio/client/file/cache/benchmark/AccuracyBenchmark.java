@@ -66,6 +66,8 @@ public class AccuracyBenchmark implements Benchmark {
     long byteFP = 0; // number of bytes are seen as existent in cache but in fact not
     long byteFN = 0; // number of bytes are seen as inexistent in cache but in fact existed
     long totalBytes = 0; // number of bytes passed the shadow cache
+    long insertionFailCount = 0;
+    long insertionCount = 0;
     long agingPeriod = mBenchmarkParameters.mWindowSize / mBenchmarkParameters.mAgeLevels;
     if (agingPeriod <= 0) {
       agingPeriod = 1;
@@ -86,7 +88,10 @@ public class AccuracyBenchmark implements Benchmark {
       long startCacheTick = System.currentTimeMillis();
       int nread = mShadowCache.get(item, entry.getSize(), entry.getScopeInfo());
       if (nread <= 0) {
-        mShadowCache.put(item, entry.getSize(), entry.getScopeInfo());
+        insertionCount++;
+        if(!mShadowCache.put(item, entry.getSize(), entry.getScopeInfo())){
+          insertionFailCount++;
+        };
       }
       mShadowCache.updateTimestamp(1);
       cacheDuration += (System.currentTimeMillis() - startCacheTick);
@@ -191,6 +196,7 @@ public class AccuracyBenchmark implements Benchmark {
         byteFP * 100 / (double) totalBytes, byteFN, totalBytes, byteFN * 100 / (double) totalBytes,
         byteFP + byteFN, totalBytes, (byteFP + byteFN) * 100 / (double) totalBytes);
 
+    System.out.println("insertion failure rate" + (double)insertionFailCount/insertionCount);
     if (mBenchmarkParameters.mVerbose) {
       System.out.println(mShadowCache.dumpDebugInfo());
     }

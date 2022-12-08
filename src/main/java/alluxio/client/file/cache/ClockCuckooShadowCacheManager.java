@@ -15,6 +15,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import alluxio.client.file.cache.cuckoofilter.ClockCuckooFilter;
 import alluxio.client.file.cache.cuckoofilter.ConcurrentClockCuckooFilter;
+import alluxio.client.file.cache.cuckoofilter.SimpleClockCuckooFilter;
 import alluxio.client.file.cache.cuckoofilter.SlidingWindowType;
 import alluxio.client.quota.CacheScope;
 
@@ -30,13 +31,14 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
   private static final int BITS_PER_TAG = 8;
 
   private final ScheduledExecutorService mScheduler = Executors.newScheduledThreadPool(0);
-  private final ConcurrentClockCuckooFilter<PageId> mFilter;
+  private final ClockCuckooFilter<PageId> mFilter;
   private final AtomicLong mShadowCachePageRead = new AtomicLong(0);
   private final AtomicLong mShadowCachePageHit = new AtomicLong(0);
   private final AtomicLong mShadowCacheByteRead = new AtomicLong(0);
   private final AtomicLong mShadowCacheByteHit = new AtomicLong(0);
   private long mShadowCacheBytes = 0;
   private long mShadowCachePages = 0;
+  private Boolean mOpenSimpleCCF = true;
 
   /**
    * Create a ClockCuckooShadowCacheManager.
@@ -46,7 +48,11 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
   public ClockCuckooShadowCacheManager(ShadowCacheParameters conf) {
     long windowMs = conf.mWindowSize;
     int bitsPerClock = conf.mClockBits;
-    mFilter = ConcurrentClockCuckooFilter.create(PageIdFunnel.FUNNEL, conf);
+    if(mOpenSimpleCCF){
+      mFilter = SimpleClockCuckooFilter.create(PageIdFunnel.FUNNEL, conf);
+    }else{
+      mFilter = ConcurrentClockCuckooFilter.create(PageIdFunnel.FUNNEL, conf);
+    }
     long agingPeriod = windowMs >> bitsPerClock;
     if (conf.mSlidingWindowType == SlidingWindowType.TIME_BASED){
       mScheduler.scheduleAtFixedRate(this::aging, agingPeriod, agingPeriod, MILLISECONDS);
@@ -154,7 +160,7 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
 
   @Override
   public double getFalsePositiveRatio() {
-    return mFilter.expectedFpp();
+    return 0;
   }
 
   @Override
@@ -177,6 +183,6 @@ public class ClockCuckooShadowCacheManager implements ShadowCache {
     return mFilter.dumpDebugInfo();
   }
   public double getInsertionFailureRatio() {
-    return (double) mFilter.insertionFailureCount.get() / mFilter.insertionCount.get();
+    return 0;
   }
 }

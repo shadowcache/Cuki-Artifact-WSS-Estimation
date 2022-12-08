@@ -100,5 +100,20 @@ public interface ClockCuckooFilter<T> {
    */
   long approximateElementSize(CacheScope scopeInfo);
 
+  String getMRCSummary();
   String dumpDebugInfo();
+
+  double[] getMRC();
+
+  String getSummary();
+
+  int getBitsPerTag();
+  int getBitsPerClock();
+  int getBitsPerScope();
+  int getBitsPerSize();
+  int getNumBuckets();
+  int getTagsPerBucket();
+
+  default void increaseOperationCount(int i){
+  }
 }
