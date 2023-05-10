@@ -10,7 +10,7 @@ The whole artifact is departed into three parts:
 - cache system: https://github.com/shadowcache/Cuki-Artifact-Alluxio
 
 ## Experimental Environment
-Meces is implemented on Alluxio, which is compiled using Maven and run with Java. It also relies on Presto and Hive to function properly.
+Cuki is implemented on Alluxio, which is compiled using Maven and run with Java. It also relies on Presto and Hive to function properly.
 
 To save you the trouble of setting up all these components, we provide two ways to get a pre-prepared environment. You can SSH into our pre-prepared machine in the AWS Cloud or deploy the environment yourself.
 
@@ -49,7 +49,7 @@ Dependencies are:
 - S3
 
 
-First, you need to deploy hive with its metastore in hdfs and mysql. The TPC-DS data should be located in S3. Then compile the alluxio provided by us:
+First, you need to deploy hive with its metastore in hdfs and mysql. The TPC-DS data should be located in S3. We also prepare the TPC-DS data in our S3, if you want to access it, please contact us. Then compile the alluxio provided by us:
 ```cmd
 cd alluxio
 mvn clean install -Dmaven.javadoc.skip=true -DskipTests -Dlicense.skip=true -Dcheckstyle.skip=true -Dfindbugs.skip=true -Prelease
@@ -61,6 +61,21 @@ cd presto_cuki
 mvn -N io.takari:maven:wrapper
 mvnw clean install -T2C -DskipTests -Dlicense.skip=true -Dcheckstyle.skip=true -Dfindbugs.skip=true -pl '!presto-docs'
 ``` 
+
+If you decide to use TPC-DS data in our S3, rename the `preto_cuki/etc-example` to the `preto_cuki/etc`, then config the key provided by us to the `presto_cuki/etc/hive.properties`.
+```
+hive.s3.aws-access-key=xxx
+hive.s3.aws-secret-key=xxx
+```
+
+Then, load the data by the command:
+```cmd
+bash ./benchmarks/restart.sh
+export PRESTO="/presto_cuki/presto-cli/target/presto-cli-0.266-SNAPSHOT-executable.jar"
+${PRESTO} -f ./benchmarks/create_from_tpcds_sf10.sql
+hive -f ./benchmarks/create_hive_s3_table.sql
+```
+
 
 The wss-estimation of the paper can be compiled by:
 ```cmd
@@ -74,7 +89,10 @@ mvn assembly:assembly \
   -Dfindbugs.skip=true
 ```
 
-##  Steps for Evaluating Meces
+The wss-estimation dataset is too large to upload, you can download the MSR dataset at http://iotta.snia.org/traces/block-io/388, and twitter dataset at https://github.com/twitter/cache-trace. We have prepare them in our EC2 machine path `~/wss-estimation/datasets`.  
+
+
+##  Steps for Evaluating Cuki
 We have automated most of the integration and launching operations of our artifact. You can refer to the script files in wss-estimation and presto_cuki.
 
 ### Evaluate the accuracy of wss-estimation
@@ -89,7 +107,7 @@ mvn assembly:assembly \
   -Dcheckstyle.skip=true \
   -Dfindbugs.skip=true
 ```
-3. Run the `.sh` files, note that msr_ccf_mem should run twice with different `OPPO_AGING` parameters (true|false), the cmd will output the result file path.:
+2. Run the `.sh` files, note that msr_ccf_mem should run twice with different `OPPO_AGING` parameters (true|false), the cmd will output the result file path.:
 ```
 cd wss-estimation
 bash ./bin/accuracy/msr_ccf_mem.sh
@@ -98,7 +116,7 @@ bash ./bin/accuracy/msr_mbf_mem.sh
 bash ./bin/accuracy/msr_ss_mem.sh
 bash ./bin/accuracy/msr_swamp_mem.sh
 ```
-5. After all methods get evaluated, run the following command to get your figure! The output figure path will displayed in the cmd:
+3. After all methods get evaluated, run the following command to get your figure! The output figure path will displayed in the cmd:
 ```
 python3 ./plot/plot_msr_accuracy.py
 ```
